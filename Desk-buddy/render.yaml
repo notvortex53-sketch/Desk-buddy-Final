@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: desk-buddy-gateway
+    runtime: python
+    plan: free
+    rootDir: gateway
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DEVICE_TOKEN_PEPPER
+        sync: false
+      - key: DEVICE_AUTH_TIMEOUT_SECONDS
+        value: 10
+      - key: DEVICE_HEARTBEAT_SECONDS
+        value: 25
+      - key: WINDOWS_REAUTHENTICATION_SECONDS
+        value: 3600
+      - key: ANDROID_REAUTHENTICATION_SECONDS
+        value: 3600
+      - key: ETHICAL_MODE_REQUIRED
+        value: true
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: onboarding@resend.dev
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: CHAT_MODEL
+        value: anthropic/claude-sonnet-4.6
+      - key: ETHICAL_MODEL
+        value: anthropic/claude-sonnet-4.6
+      - key: VOICE_MODEL
+        value: openai/gpt-audio-mini
+      - key: VOICE_NAME
+        value: alloy
+      - key: MODEL_TIMEOUT_SECONDS
+        value: 60

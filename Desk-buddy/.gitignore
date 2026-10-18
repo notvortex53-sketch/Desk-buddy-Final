@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+desk_buddy.db
+
+# Local ESP32-C3 secrets (copy from esp32_c3/config.example.h)
+esp32_c3/config.h
+.env
+gateway/.env
+*.db
+gateway/desk_buddy.db
