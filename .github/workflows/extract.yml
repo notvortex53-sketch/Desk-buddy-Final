@@ -1,13 +1,7 @@
-```yaml
 name: Extract Desk Buddy ZIP
 
 on:
   workflow_dispatch:
-    inputs:
-      zip_path:
-        description: "Path to the ZIP file in the repository"
-        required: true
-        default: "DeskBuddy_Phase8_OpenRouter_GPTAudioMini_ClaudeSonnet46.zip"
 
 permissions:
   contents: write
@@ -20,33 +14,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify ZIP exists
+      - name: Extract ZIP
+        shell: bash
         run: |
-          if [ ! -f "${{ inputs.zip_path }}" ]; then
-            echo "ZIP file not found: ${{ inputs.zip_path }}"
+          set -euo pipefail
+
+          ZIP_FILE="DeskBuddy_Phase8_OpenRouter_GPTAudioMini_ClaudeSonnet46.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: ZIP file not found: $ZIP_FILE"
+            echo "Upload the ZIP to the root of the repository first."
             exit 1
           fi
 
-      - name: Extract ZIP
-        run: |
-          mkdir -p extracted
-          unzip -o "${{ inputs.zip_path }}" -d extracted
+          mkdir -p /tmp/deskbuddy-extract
+          unzip -o "$ZIP_FILE" -d /tmp/deskbuddy-extract
 
-          # Copy the ZIP contents into the repository root.
-          cp -a extracted/. .
-
-          rm -rf extracted
+          cp -a /tmp/deskbuddy-extract/. .
+          rm -rf /tmp/deskbuddy-extract
 
       - name: Commit extracted files
+        shell: bash
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
+
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Extract Desk Buddy project ZIP"
+            git commit -m "Extract Desk Buddy ZIP"
             git push
           fi
-```
