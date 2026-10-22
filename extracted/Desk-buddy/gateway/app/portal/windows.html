@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desk Buddy — Windows connection</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 880px; margin: 2rem auto; padding: 0 1rem; color: #172033; }
+    input, button, textarea { font: inherit; padding: .65rem; margin: .3rem 0; }
+    input, textarea { width: 100%; box-sizing: border-box; } button { cursor: pointer; }
+    .device { border: 1px solid #d9dfeb; border-radius: .6rem; margin: 1rem 0; padding: 1rem; }
+    .online { color: #087f23; } .offline { color: #6a7280; } .error { color: #b42318; } textarea { min-height: 7rem; }
+  </style>
+</head>
+<body>
+  <h1>Windows Agent Connection</h1>
+  <p>Enter the owner session token returned by pairing. It is used only in this page's requests and is never stored by the page.</p>
+  <label>Owner session token<input id="session" type="password" autocomplete="off"></label>
+  <button id="load">Load Windows devices</button>
+  <p id="message" role="status"></p>
+  <section id="devices"></section>
+  <section id="credential" hidden>
+    <h2>New Windows credential — copy now</h2>
+    <p>This token and command are shown once. Treat them like a password.</p>
+    <label>Device token<input id="token" type="text" readonly></label>
+    <label>Connection command<textarea id="command" readonly></textarea></label>
+    <button id="copy">Copy command</button>
+  </section>
+  <script>
+    const session = document.querySelector('#session');
+    const message = document.querySelector('#message');
+    const devices = document.querySelector('#devices');
+    const credential = document.querySelector('#credential');
+    const token = document.querySelector('#token');
+    const command = document.querySelector('#command');
+    const auth = () => ({ Authorization: `Bearer ${session.value.trim()}` });
+    const setMessage = (text, error = false) => { message.textContent = text; message.className = error ? 'error' : ''; };
+    async function api(path, options = {}) {
+      const response = await fetch(path, { ...options, headers: { ...auth(), ...(options.headers || {}) } });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || 'Request failed.');
+      return body;
+    }
+    function deviceCard(device) {
+      const card = document.createElement('article'); card.className = 'device';
+      const title = document.createElement('h2'); title.textContent = device.label || device.device_id; card.append(title);
+      const status = document.createElement('p'); status.className = device.online ? 'online' : 'offline';
+      status.textContent = device.online ? 'Online' : 'Offline'; card.append(status);
+      const seen = document.createElement('p'); seen.textContent = `Last seen: ${device.last_seen_at || 'never'}`; card.append(seen);
+      const renew = document.createElement('button'); renew.textContent = 'Renew credential';
+      renew.onclick = async () => {
+        try { const data = await api(`/api/devices/${encodeURIComponent(device.device_id)}/renew-credential`, { method: 'POST' });
+          token.value = data.device_token; command.value = data.connection_command; credential.hidden = false; setMessage('Credential renewed. Configure the Windows agent with the new command.');
+        } catch (error) { setMessage(error.message, true); }
+      };
+      const revoke = document.createElement('button'); revoke.textContent = 'Revoke device';
+      revoke.onclick = async () => { if (!confirm(`Revoke ${device.label || device.device_id}?`)) return;
+        try { await api(`/api/devices/${encodeURIComponent(device.device_id)}`, { method: 'DELETE' }); setMessage('Device revoked.'); loadDevices(); }
+        catch (error) { setMessage(error.message, true); }
+      };
+      card.append(renew, revoke); return card;
+    }
+    async function loadDevices() {
+      credential.hidden = true; devices.replaceChildren();
+      try { const all = await api('/api/devices'); const windows = all.filter(d => d.device_type === 'windows');
+        if (!windows.length) setMessage('No paired Windows devices found.'); else { windows.forEach(d => devices.append(deviceCard(d))); setMessage('Windows devices loaded.'); }
+      } catch (error) { setMessage(error.message, true); }
+    }
+    document.querySelector('#load').onclick = loadDevices;
+    document.querySelector('#copy').onclick = async () => { await navigator.clipboard.writeText(command.value); setMessage('Connection command copied.'); };
+  </script>
+</body>
+</html>

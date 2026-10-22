@@ -1,0 +1,66 @@
+# Unzip DeskBuddy archive: download artifact if present, or find zip in repo/workspace and unzip it.
+name: Unzip DeskBuddy Archive (artifact-aware)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "DeskBuddy_v2_Complete_Agent_System.zip"
+    
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install unzip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+
+      - name: Attempt to download ZIP artifact (if produced by another job)
+        uses: actions/download-artifact@v4
+        with:
+          name: DeskBuddy_v2_Render_Gateway
+          path: .
+        continue-on-error: true
+
+      - name: Locate and unzip archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p extracted_gateway
+
+          # Try a few known DeskBuddy archive names and keep compatibility with the previous workflow name.
+          zipfile="$(find . -maxdepth 6 -type f \( \
+            -iname 'DeskBuddy_v2_Complete_Agent_System*.zip' -o \
+            -iname 'DeskBuddy_v2_Render_Gateway*.zip' -o \
+            -iname 'DeskBuddy*.zip' \
+          \) -print -quit || true)"
+
+          if [[ -z "${zipfile}" ]]; then
+            echo "::warning::No DeskBuddy ZIP archive found in the workspace. Skipping extraction."
+            echo "Top-level repo contents:"
+            ls -la || true
+            echo "All ZIP files (up to 6 levels):"
+            find . -maxdepth 6 -type f -name '*.zip' -print | sed -n '1,200p' || true
+            exit 0
+          fi
+
+          echo "Found ZIP: $zipfile"
+          unzip -o "$zipfile" -d extracted_gateway
+
+          echo "Extracted files (first 200):"
+          find extracted_gateway -maxdepth 5 -type f -print | sed -n '1,200p'
+
+      - name: List extracted files
+        run: ls -la extracted_gateway || true
+
+      - name: Upload extracted files as artifact
+        if: ${{ hashFiles('extracted_gateway/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted-gateway
+          path: extracted_gateway

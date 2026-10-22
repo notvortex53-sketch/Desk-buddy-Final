@@ -1,0 +1,51 @@
+name: Extract Desk Buddy ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZIP_FILE="DeskBuddy_Phase8_OpenRouter_GPTAudioMini_ClaudeSonnet46.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: ZIP file not found: $ZIP_FILE"
+            echo "Upload the ZIP to the root of the repository first."
+            exit 1
+          fi
+
+          mkdir -p /tmp/deskbuddy-extract
+          unzip -o "$ZIP_FILE" -d /tmp/deskbuddy-extract
+
+          cp -a /tmp/deskbuddy-extract/. .
+          rm -rf /tmp/deskbuddy-extract
+
+      - name: Commit extracted files
+        shell: bash
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Extract Desk Buddy ZIP"
+            git push
+          fi
